@@ -192,6 +192,4 @@ class Trainer(object):
             'optim': self.optim
         }
         torch.save(checkpoint,
-                   '%s_acc_%.2f_ppl_%.2f_e%d.pt'
-                   % (opt.save_model, valid_stats.accuracy(),
-                      valid_stats.ppl(), epoch))
+                '%s.pt' % (opt.save_model))
