@@ -113,7 +113,7 @@ def preprocess_opts(parser):
                         help="Maximum source sequence length")
     parser.add_argument('-src_seq_length_trunc', type=int, default=0,
                         help="Truncate source sequence length.")
-    parser.add_argument('-tgt_seq_length', type=int, default=100,
+    parser.add_argument('-tgt_seq_length', type=int, default=50,
                         help="Maximum target sequence length to keep.")
     parser.add_argument('-tgt_seq_length_trunc', type=int, default=0,
                         help="Truncate target sequence length.")
@@ -132,7 +132,8 @@ def preprocess_opts(parser):
 
 def train_opts(parser):
     # distribution of train dataset
-    parser.add_argument('-prob', type=str, default='data/generate_prob.pkl')
+    parser.add_argument('-prob', type=str, default='')
+    parser.add_argument('-distill', action='store_true')
     # Model loading/saving options
     parser.add_argument('-data', required=True,
                         help="""Path prefix to the ".train.pt" and
@@ -246,7 +247,7 @@ def translate_opts(parser):
                         help='Beam size')
     parser.add_argument('-batch_size', type=int, default=30,
                         help='Batch size')
-    parser.add_argument('-max_sent_length', type=int, default=100,
+    parser.add_argument('-max_sent_length', type=int, default=50,
                         help='Maximum sentence length.')
     parser.add_argument('-replace_unk', action="store_true",
                         help="""Replace the generated UNK tokens with the

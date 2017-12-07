@@ -188,13 +188,15 @@ def train_model(model, train_data, valid_data, fields, optim):
     trainer = onmt.Trainer(model, train_iter, valid_iter,
                            train_loss, valid_loss, optim,
                            trunc_size, shard_size, opt.topK)
-    
-    batch_prob = get_sorted_prob(train_data, pkl.load(open(opt.prob)))
+    if opt.distill: 
+        batch_prob = get_sorted_prob(train_data, pkl.load(open(opt.prob)))
     for epoch in range(opt.start_epoch, opt.epochs + 1):
         print('')
         # 1. Train for one epoch on the training set.
-        #train_stats = trainer.train(epoch, fields, report_func)
-        train_stats = trainer.distill(epoch, fields, batch_prob, report_func)
+        if opt.distill: 
+            train_stats = trainer.distill(epoch, fields, batch_prob, report_func)
+        else:
+            train_stats = trainer.train(epoch, fields, report_func)
         print('Train perplexity: %g' % train_stats.ppl())
         print('Train accuracy: %g' % train_stats.accuracy())
 
@@ -215,7 +217,7 @@ def train_model(model, train_data, valid_data, fields, optim):
         if epoch >= opt.start_checkpoint_at and valid_stats.ppl() < min_ppl:
             trainer.drop_checkpoint(opt, epoch, fields, valid_stats)
             min_ppl = valid_stats.ppl()
-
+            print('Saving Model...')
 
 def check_save_model_path():
     save_model_path = os.path.abspath(opt.save_model)

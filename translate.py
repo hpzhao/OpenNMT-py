@@ -107,7 +107,7 @@ def generate_ensemble(mode='generate'):
                 output_3, decStates_3 = translator_3.step(input, context_3, decStates_3)
                 #print output
                 output = (output_1 + output_2 + output_3) / 3
-                values, indices = torch.topk(output, 10)
+                values, indices = torch.topk(output, 100)
                 distrib.append([values.view(-1).tolist(),indices.view(-1).tolist()])
                 pred_id = indices.view(-1).tolist()[0]
                 pred_ids.append(pred_id)
@@ -128,7 +128,7 @@ def generate_ensemble(mode='generate'):
                 output_3, decStates_3 = translator_3.step(input, context_3, decStates_3)
                 #print output
                 output = (output_1 + output_2 + output_3) / 3
-                values, indices = torch.topk(output, 10)
+                values, indices = torch.topk(output, 100)
                 distrib.append((values.view(-1).tolist(),indices.view(-1).tolist()))
                 input = var(torch.LongTensor([sent[j]])).view(1,1,1).cuda()
             distribution.append(distrib)
@@ -179,6 +179,7 @@ def main():
                 pred_batch, gold_batch,
                 pred_scores, gold_scores,
                 (sent.squeeze(1) for sent in src.split(1, dim=1)))
+        
 
         for pred_sents, gold_sent, pred_score, gold_score, src_sent in z_batch:
             n_best_preds = [" ".join(pred) for pred in pred_sents[:opt.n_best]]
@@ -220,10 +221,30 @@ def main():
         json.dump(translator.beam_accum,
                   codecs.open(opt.dump_beam, 'w', 'utf-8'))
 
+def tmp():
+    dummy_parser = argparse.ArgumentParser(description='train.py')
+    opts.model_opts(dummy_parser)
+    dummy_opt = dummy_parser.parse_known_args([])[0]
 
+    opt.cuda = opt.gpu > -1
+    if opt.cuda:
+        torch.cuda.set_device(opt.gpu)
+
+    translator_1 = onmt.Translator(opt, dummy_opt.__dict__)
+    tgt_vocab = translator_1.fields['tgt'].vocab
+
+    sent_ids = []
+
+    for sent in open('data/tgt-train.txt'):
+        sent = sent.strip()
+        sent_id = sent_2_id(sent, tgt_vocab.stoi)
+        sent_ids.append(sent_id)
+
+    pkl.dump(sent_ids,open('data/gold_label.pkl','w'))
 if __name__ == "__main__":
     main()
     #if opt.tgt:
     #    generate_ensemble('gold')
     #else:
     #    generate_ensemble('generate')
+    #tmp()
