@@ -75,7 +75,11 @@ def ensemble():
     src_vocab = translators[0].fields['src'].vocab
     tgt_vocab = translators[0].fields['tgt'].vocab
      
-    def var(a): return Variable(a, volatile = True)
+    def var(a): 
+        if opt.cuda:
+            return Variable(a, volatile = True).view(1,1,1).cuda()
+        else:
+            return Variable(a, volatile = True).view(1,1,1)
 
     if opt.output:
         mode = 'translate'
@@ -88,8 +92,7 @@ def ensemble():
      
     for i,batch in enumerate(test_data):
         context,decStates = zip(*[translator.init_decoder_state(batch,data) for translator in translators])
-        input = var(torch.LongTensor([tgt_vocab.stoi[onmt.IO.BOS_WORD]])).view(1,1,1).cuda()
-        
+        input = var(torch.LongTensor([tgt_vocab.stoi[onmt.IO.BOS_WORD]]))
         distrib = []
         if mode == 'translate':
             pred_ids = []
@@ -103,8 +106,7 @@ def ensemble():
                 distrib.append([values.view(-1).tolist(),indices.view(-1).tolist()])
                 pred_id = indices.view(-1).tolist()[0]
                 pred_ids.append(pred_id)
-                input = var(torch.LongTensor([pred_ids[-1]])).view(1,1,1).cuda()
-                
+                input = var(torch.LongTensor([pred_ids[-1]]))
                 if pred_ids[-1] == tgt_vocab.stoi[onmt.IO.EOS_WORD]: 
                     break
             if len(pred_ids) > 1: 
@@ -121,7 +123,7 @@ def ensemble():
                 
                 values, indices = torch.topk(output, 10)
                 distrib.append((values.view(-1).tolist(),indices.view(-1).tolist()))
-                input = var(torch.LongTensor([sent[j]])).view(1,1,1).cuda()
+                input = var(torch.LongTensor([sent[j]]))
             distribution.append(distrib)
     if opt.dump_prob: 
         pkl.dump(distribution, open(opt.dump_prob, 'w'))

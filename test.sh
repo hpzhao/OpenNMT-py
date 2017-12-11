@@ -20,4 +20,4 @@ models='model/model_1.pt model/model_2.pt model/model_3.pt'
 #python translate.py -models $models -src $src_test -output result/ensembleX3.test -gpu 2 > /dev/null 2>&1 &
 
 #python translate.py -models $models -src $src_train -output result/ensembleX3.train -dump_prob data/sampling.prob.pkl -gpu 2 > /dev/null 2>&1 &
-python translate.py -models $models -src $src_train -tgt $tgt_train -dump_prob data/tf.prob.pkl -gpu 3 > /dev/null 2>&1 &
+#python translate.py -models $models -src $src_train -tgt $tgt_train -dump_prob data/tf.prob.pkl -gpu 3 > /dev/null 2>&1 &
