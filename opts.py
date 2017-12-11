@@ -243,9 +243,9 @@ def translate_opts(parser):
     parser.add_argument('-output', default='pred.txt',
                         help="""Path to output the predictions (each line will
                         be the decoded sequence""")
-    parser.add_argument('-beam_size',  type=int, default=5,
+    parser.add_argument('-beam_size',  type=int, default=1,
                         help='Beam size')
-    parser.add_argument('-batch_size', type=int, default=30,
+    parser.add_argument('-batch_size', type=int, default=1,
                         help='Batch size')
     parser.add_argument('-max_sent_length', type=int, default=50,
                         help='Maximum sentence length.')

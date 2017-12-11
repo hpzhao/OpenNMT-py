@@ -89,18 +89,17 @@ def join_dicts(*args):
 
 
 class OrderedIterator(torchtext.data.Iterator):
-    pass
-    #def create_batches(self):
-    #    if self.train:
-    #        self.batches = torchtext.data.pool(
-    #            self.data(), self.batch_size,
-    #            self.sort_key, self.batch_size_fn,
-    #            random_shuffler=self.random_shuffler)
-    #    else:
-    #        self.batches = []
-    #        for b in torchtext.data.batch(self.data(), self.batch_size,
-    #                                      self.batch_size_fn):
-    #            self.batches.append(sorted(b, key=self.sort_key))
+    def create_batches(self):
+        if self.train:
+            self.batches = torchtext.data.pool(
+                self.data(), self.batch_size,
+                self.sort_key, self.batch_size_fn,
+                random_shuffler=self.random_shuffler)
+        else:
+            self.batches = []
+            for b in torchtext.data.batch(self.data(), self.batch_size,
+                                          self.batch_size_fn):
+                self.batches.append(sorted(b, key=self.sort_key))
 
 
 class ONMTDataset(torchtext.data.Dataset):

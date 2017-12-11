@@ -100,7 +100,7 @@ def make_train_data_iter(train_data, opt):
     """
     return onmt.IO.OrderedIterator(
                 dataset=train_data, batch_size=opt.batch_size,
-                device=opt.gpuid[0] if opt.gpuid else -1,train = True, sort = True, shuffle = False,
+                device=opt.gpuid[0] if opt.gpuid else -1,
                 repeat=False)
 
 
