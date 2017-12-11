@@ -231,8 +231,12 @@ def train_opts(parser):
 
 
 def translate_opts(parser):
-    parser.add_argument('-model', required=True,
+    parser.add_argument('-model',  type=str,
                         help='Path to model .pt file')
+    parser.add_argument('-models', type=str, nargs='+',default=[],
+                        help='Path to models')
+    parser.add_argument('-dump_prob', type=str,default="",
+                        help='Path to models')
     parser.add_argument('-src',   required=True,
                         help="""Source sequence to decode (one line per
                         sequence)""")

@@ -320,34 +320,11 @@ class Translator(object):
         def unbottle(m):
             return m.view(beam_size, batch_size, -1)
 
-        # Run one step.
         decOut, decStates, attn = \
             self.model.decoder(input, context, decStates)
         decOut = decOut.squeeze(0)
         # decOut: beam x rnn_size
             
-        # (b) Compute a vector of batch*beam word scores.
         out = self.model.generator.forward(decOut).data
         out = torch.exp(unbottle(out))
         return out, decStates
-        #  (2) translate
-        #pred, predScore, attn, goldScore = self.translateSingle(batch, data)
-        #self.translateSingle(batch, data)
-        #assert(len(goldScore) == len(pred))
-        #pred, predScore, attn, goldScore, i = list(zip(
-        #    *sorted(zip(pred, predScore, attn, goldScore,
-        #                batch.indices.data),
-        #            key=lambda x: x[-1])))
-        #inds, perm = torch.sort(batch.indices.data)
-
-        ##  (3) convert indexes to words
-        #predBatch, goldBatch = []
-        #src = batch.src[0].data.index_select(1, perm)
-        #for b in range(batch_size):
-        #    src_vocab = data.src_vocabs[inds[b]]
-        #    predBatch.append(
-        #        [self.buildTargetTokens(pred[b][n], src[:, b],
-        #                                attn[b][n], src_vocab)
-        #         for n in range(self.opt.n_best)])
-        #
-        #return predBatch, predScore, goldScore, attn, src
