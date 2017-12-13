@@ -24,6 +24,8 @@ except ImportError:
 parser = argparse.ArgumentParser(description='translate.py')
 opts.add_md_help_argument(parser)
 opts.translate_opts(parser)
+opts.distill_opts(parser)
+opts.preprocess_opts(parser)
 
 opt = parser.parse_args()
 if opt.batch_size != 1:
@@ -65,7 +67,7 @@ def ensemble():
         opt.model = model
         translators.append(onmt.Translator(opt, dummy_opt.__dict__))
     
-    data = onmt.IO.ONMTDataset(opt.src, opt.tgt, translators[0].fields, None)
+    data = onmt.IO.ONMTDataset(opt.src, opt.tgt, translators[0].fields,opt,train=False)
     
     test_data = onmt.IO.OrderedIterator(
         dataset=data, device=opt.gpu,
@@ -144,7 +146,7 @@ def translate():
     if opt.dump_beam != "":
         import json
         translator.initBeamAccum()
-    data = onmt.IO.ONMTDataset(opt.src, opt.tgt, translator.fields, None)
+    data = onmt.IO.ONMTDataset(opt.src, opt.tgt, translator.fields, opt, train=False)
 
     test_data = onmt.IO.OrderedIterator(
         dataset=data, device=opt.gpu,

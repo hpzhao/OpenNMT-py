@@ -1,3 +1,4 @@
+#coding:utf8
 """
 This file handles the details of the loss function during training.
 
@@ -10,7 +11,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 import torch.nn.functional as F
 import onmt
-
+import pdb
 
 class LossComputeBase(nn.Module):
     """
@@ -68,7 +69,6 @@ class LossComputeBase(nn.Module):
         batch_stats = onmt.Statistics()
         range_ = (cur_trunc, cur_trunc + trunc_size)
         shard_state = self.make_shard_state(batch, output, range_, attns)
-        
         for shard in shards(shard_state, shard_size):
             loss, stats = self.compute_loss(batch, **shard)
             loss.div(batch.batch_size).backward()
@@ -108,6 +108,7 @@ class NMTLossCompute(LossComputeBase):
         weight = torch.ones(len(tgt_vocab))
         weight[self.padding_idx] = 0
         self.criterion = nn.NLLLoss(weight, size_average=False)
+        self.NLLLoss = nn.NLLLoss(weight, reduce=False)
     def make_shard_state(self, batch, output, range_, attns=None):
         """ See base class for args description. """
         return {
@@ -136,18 +137,23 @@ class NMTLossCompute(LossComputeBase):
 
         scores = self.generator(self.bottle(output))
         scores_data = scores.data.clone()
-        target = batch.tgt[1:].view(-1)
-        target_data = target.data.clone()
+
+        gold_target = batch.tgt[1:].view(-1)
+        target_data = gold_target.data.clone()
         
-        NLLLoss = self.criterion(scores, target)
-        loss_data = NLLLoss.div(batch.batch_size).data.clone()
+        # Loss备选方案：
+        # 1. 不累加，分别bp，看显存占用
+        # 2. 利用shard节省显存
+        losses = [torch.sum(self.NLLLoss(scores, targets[i]) * weights[i]) 
+                            for i in range(topK)]
+        Loss = torch.cat(losses).sum()
+        
+        Loss.div(batch.batch_size).backward()
+        loss_data = Loss.data.clone()
+
         stats = self.stats(loss_data, scores_data, target_data)
         batch_stats.update(stats)
         
-        #scores = torch.cat(tuple(scores for _ in range(topK)), dim=0)
-        #cross_entropy_loss = self.criterion(scores,targets) * weights
-        #cross_entropy_loss.sum().div(batch.batch_size).backward()
-
         return batch_stats
 
 def filter_shard_state(state):

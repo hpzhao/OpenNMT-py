@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import shutil
 import argparse
 import codecs
 import torch
@@ -32,6 +32,8 @@ parser.add_argument('-valid_tgt', required=True,
 parser.add_argument('-save_data', required=True,
                     help="Output file for the prepared data")
 
+parser.add_argument('-use_vocab', default='',
+                    help="use other vocab rather than generating vocab")
 parser.add_argument('-src_vocab',
                     help="Path to an existing source vocabulary")
 parser.add_argument('-tgt_vocab',
@@ -44,6 +46,7 @@ parser.add_argument('-report_every', type=int, default=100000,
                     help="Report status every this many sentences")
 
 opts.preprocess_opts(parser)
+opts.distill_opts(parser)
 
 opt = parser.parse_args()
 torch.manual_seed(opt.seed)
@@ -63,12 +66,15 @@ def main():
     onmt.IO.ONMTDataset.build_vocab(train, opt)
 
     print("Building Valid...")
-    valid = onmt.IO.ONMTDataset(opt.valid_src, opt.valid_tgt, fields, opt)
+    valid = onmt.IO.ONMTDataset(opt.valid_src, opt.valid_tgt, fields, opt, train=False)
     print("Saving train/valid/fields")
 
     # Can't save fields, so remove/reconstruct at training time.
-    torch.save(onmt.IO.ONMTDataset.save_vocab(fields),
-               open(opt.save_data + '.vocab.pt', 'wb'))
+    if opt.use_vocab:
+        shutil.copy(opt.use_vocab, opt.save_data + '.vocab.pt')
+    else:
+        torch.save(onmt.IO.ONMTDataset.save_vocab(fields),
+                open(opt.save_data + '.vocab.pt', 'wb'))
     train.fields = []
     valid.fields = []
     torch.save(train, open(opt.save_data + '.train.pt', 'wb'))

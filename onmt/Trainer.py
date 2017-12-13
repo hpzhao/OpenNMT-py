@@ -9,6 +9,7 @@ mechanism things here(i.e. what to do), and leave the strategy
 things to users(i.e. how to do it). Also see train.py(one of the
 users of this library) for the strategy things we do.
 """
+import pdb
 import time
 import sys
 import math
@@ -18,7 +19,7 @@ import torch.nn as nn
 import onmt
 import onmt.modules
 
-
+from torch.autograd import Variable
 class Statistics(object):
     """
     Train/validate loss statistics.
@@ -67,7 +68,7 @@ class Statistics(object):
 class Trainer(object):
     def __init__(self, model, train_iter, valid_iter,
                  train_loss, valid_loss, optim,
-                 trunc_size, shard_size, topK):
+                 trunc_size, shard_size):
         """
         Args:
             model: the seq2seq model.
@@ -88,7 +89,6 @@ class Trainer(object):
         self.optim = optim
         self.trunc_size = trunc_size
         self.shard_size = shard_size
-        self.topK = topK
         # Set model in training mode.
         self.model.train()
 
@@ -119,7 +119,6 @@ class Trainer(object):
                 batch_stats = self.train_loss.sharded_compute_loss(
                         batch, outputs, attns, j,
                         trunc_size, self.shard_size)
-                #batch_stats = self.train_loss.cross_entropy_loss(batch, outputs, j, trunc_size, self.topK)
                 # 4. Update the parameters and statistics.
                 self.optim.step()
                 total_stats.update(batch_stats)
@@ -134,8 +133,28 @@ class Trainer(object):
                         epoch, i, len(self.train_iter),
                         total_stats.start_time, self.optim.lr, report_stats)
         return total_stats
+    def get_target(self, probs, indices, target_size, topK):
+        step = len(probs)
+        prob_pad = [0.0 for _ in range(topK)]
+        index_pad = [1 for _ in range(topK)]
+        weights = []
+        targets = []
 
-    def distill(self, epoch, fields, batch_prob, report_func=None):
+        for i in range(topK):
+            weight,target = [],[]
+            for j in range(target_size):
+                for k in range(step):
+                    if j < len(probs[k]):
+                        weight.append(probs[k][j][i])
+                        target.append(indices[k][j][i])
+                    else:
+                        weight.append(0.0)
+                        target.append(1)
+            weights.append(weight)
+            targets.append(target)
+        return Variable(torch.FloatTensor(weights)), Variable(torch.LongTensor(targets))
+
+    def distill(self, opt, epoch, fields, report_func=None):
         """ Called for each epoch to train. """
         total_stats = Statistics()
         report_stats = Statistics()
@@ -144,7 +163,6 @@ class Trainer(object):
         
         for i, batch in enumerate(self.train_iter):
             target_size, batch_size = batch.tgt.size()
-
             dec_state = None
             _, src_lengths = batch.src
             src = onmt.IO.make_features(batch, 'src')
@@ -155,7 +173,11 @@ class Trainer(object):
             outputs, attns, dec_state = \
                 self.model(src, tgt_outer, src_lengths, dec_state)
             # 3. Compute loss
-            batch_stats = self.train_loss.cross_entropy_loss(batch, outputs, self.topK, *batch_prob[i])
+            weights , targets = self.get_target(batch.selected_prob, batch.selected_indices, target_size - 1, opt.topK)
+            if opt.gpuid:
+                weights = weights.cuda()
+                targets = targets.cuda()
+            batch_stats = self.train_loss.cross_entropy_loss(batch, outputs, opt.topK, weights, targets)
             # 4. Update the parameters and statistics.
             self.optim.step()
             total_stats.update(batch_stats)

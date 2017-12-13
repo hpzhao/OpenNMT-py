@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
+import cPickle as pkl
 import codecs
 from collections import Counter, defaultdict
 from itertools import chain, count
-
+import pdb
 import torch
 import torchtext.data
 import torchtext.vocab
@@ -87,8 +88,35 @@ def join_dicts(*args):
     """
     return dict(chain(*[d.items() for d in args]))
 
+class Batch(torchtext.data.Batch):
+    def __init__(self, data=None, dataset=None, device=None, train=True):
+        """Create a Batch from a list of examples."""
+        if data is not None:
+            self.batch_size = len(data)
+            self.dataset = dataset
+            self.train = train
+            for (name, field) in dataset.fields.items():
+                if field.sequential:
+                    setattr(self, name, field.numericalize(
+                        field.pad(x.__dict__[name] for x in data),
+                        device=device, train=train))
+                else:
+                    setattr(self, name, [x.__dict__[name] for x in data])
 
 class OrderedIterator(torchtext.data.Iterator):
+    def __iter__(self):
+        while True:
+            self.init_epoch()
+            for idx, minibatch in enumerate(self.batches):
+                # fast-forward if loaded from state
+                if self._iterations_this_epoch > idx:
+                    continue
+                self.iterations += 1
+                self._iterations_this_epoch += 1
+                yield Batch(minibatch, self.dataset, self.device,
+                           self.train)
+            if not self.repeat:
+                raise StopIteration
     def create_batches(self):
         if self.train:
             self.batches = torchtext.data.pool(
@@ -110,7 +138,7 @@ class ONMTDataset(torchtext.data.Dataset):
         "Sort in reverse size order"
         return -len(ex.src)
 
-    def __init__(self, src_path, tgt_path, fields, opt,
+    def __init__(self, src_path, tgt_path, fields, opt, train=True,
                  src_img_dir=None, **kwargs):
         """
         Create a TranslationDataset given paths and fields.
@@ -160,36 +188,27 @@ class ONMTDataset(torchtext.data.Dataset):
         else:
             examples = src_examples
 
-        def dynamic_dict(examples):
-            for example in examples:
-                src = example["src"]
-                src_vocab = torchtext.vocab.Vocab(Counter(src))
-                self.src_vocabs.append(src_vocab)
-                # mapping source tokens to indices in the dynamic dict
-                src_map = torch.LongTensor([src_vocab.stoi[w] for w in src])
-                example["src_map"] = src_map
-
-                if "tgt" in example:
-                    tgt = example["tgt"]
-                    mask = torch.LongTensor(
-                            [0] + [src_vocab.stoi[w] for w in tgt] + [0])
-                    example["alignment"] = mask
-                yield example
-
-        if opt is None or opt.dynamic_dict:
-            examples = dynamic_dict(examples)
-
         # Peek at the first to see which fields are used.
         ex = next(examples)
         keys = ex.keys()
-        fields = [(k, fields[k])
-                  for k in (list(keys) + ["indices"])]
-        
+        if (not opt.distill_prob) or (not train):
+            fields = [(k, fields[k])
+                      for k in (list(keys) + ["indices"])]
+        else:
+            fields = [(k, fields[k])
+                      for k in (list(keys) + ["indices","selected_prob","selected_indices"])]
+            prob = pkl.load(open(opt.distill_prob))
+
         def construct_final(examples):
             for i, ex in enumerate(examples):
-                yield torchtext.data.Example.fromlist(
-                    [ex[k] for k in keys] + [i],
-                    fields)
+                if (not opt.distill_prob) or (not train):
+                    yield torchtext.data.Example.fromlist(
+                        [ex[k] for k in keys] + [i],
+                        fields)
+                else:
+                    yield torchtext.data.Example.fromlist(
+                        [ex[k] for k in keys] + [i] + zip(*prob[i]),
+                        fields)
 
         def filter_pred(example):
             return 0 < len(example.src) <= opt.src_seq_length \
@@ -198,7 +217,7 @@ class ONMTDataset(torchtext.data.Dataset):
         super(ONMTDataset, self).__init__(
             construct_final(chain([ex], examples)),
             fields,
-            filter_pred if opt is not None
+            filter_pred if tgt_examples is not None
             else None)
 
     def _read_corpus_file(self, path, truncate):
@@ -340,6 +359,14 @@ class ONMTDataset(torchtext.data.Dataset):
             postprocessing=make_tgt, sequential=False)
 
         fields["indices"] = torchtext.data.Field(
+            use_vocab=False, tensor_type=torch.LongTensor,
+            sequential=False)
+        
+        fields["selected_prob"] = torchtext.data.Field(
+            use_vocab=False, tensor_type=torch.FloatTensor,
+            sequential=False)
+
+        fields["selected_indices"] = torchtext.data.Field(
             use_vocab=False, tensor_type=torch.LongTensor,
             sequential=False)
 

@@ -124,16 +124,14 @@ def preprocess_opts(parser):
     parser.add_argument('-lower', action='store_true', help='lowercase data')
 
     # Options most relevant to summarization
-    parser.add_argument('-dynamic_dict', action='store_true',
-                        help="Create dynamic dictionaries")
-    parser.add_argument('-share_vocab', action='store_true',
-                        help="Share source and target vocabulary")
+    #parser.add_argument('-dynamic_dict', action='store_true',
+    #                    help="Create dynamic dictionaries")
+    #parser.add_argument('-share_vocab', action='store_true',
+    #                    help="Share source and target vocabulary")
 
 
 def train_opts(parser):
     # distribution of train dataset
-    parser.add_argument('-prob', type=str, default='')
-    parser.add_argument('-distill', action='store_true')
     # Model loading/saving options
     parser.add_argument('-data', required=True,
                         help="""Path prefix to the ".train.pt" and
@@ -179,11 +177,9 @@ def train_opts(parser):
                         help="Fix word embeddings on the encoder side.")
 
     # Optimization options
-    parser.add_argument('-topK', type=int, default=5,
-                        help='topK of ensemble distribution')
     parser.add_argument('-batch_size', type=int, default=64,
                         help='Maximum batch size')
-    parser.add_argument('-max_generator_batches', type=int, default=32,
+    parser.add_argument('-max_generator_batches', type=int, default=6,
                         help="""Maximum batches of words in a sequence to run
                         the generator on in parallel. Higher is faster, but
                         uses more memory.""")
@@ -233,8 +229,6 @@ def train_opts(parser):
 def translate_opts(parser):
     parser.add_argument('-model',  type=str,
                         help='Path to model .pt file')
-    parser.add_argument('-models', type=str, nargs='+',default=[],
-                        help='Path to models')
     parser.add_argument('-dump_prob', type=str,default="",
                         help='Path to models')
     parser.add_argument('-src',   required=True,
@@ -277,8 +271,14 @@ def translate_opts(parser):
                         help="Create dynamic dictionaries")
     parser.add_argument('-share_vocab', action='store_true',
                         help="Share source and target vocabulary")
-
-
+def distill_opts(parser):
+    parser.add_argument('-topK', type=int, default=5,
+                        help='topK of ensemble distribution')
+    parser.add_argument('-distill', action='store_true')
+    parser.add_argument('-distill_prob', type=str, default='',
+                        help="distribution of distilling")
+    parser.add_argument('-models', type=str, nargs='+',default=[],
+                        help='Path to models')
 def add_md_help_argument(parser):
     parser.add_argument('-md', action=MarkdownHelpAction,
                         help='print Markdown-formatted help text and exit.')

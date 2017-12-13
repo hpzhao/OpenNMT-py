@@ -2,6 +2,7 @@
 
 from __future__ import division
 
+import pdb
 import os
 import sys
 import argparse
@@ -24,6 +25,7 @@ parser = argparse.ArgumentParser(description='train.py')
 opts.add_md_help_argument(parser)
 opts.model_opts(parser)
 opts.train_opts(parser)
+opts.distill_opts(parser)
 
 opt = parser.parse_args()
 if opt.word_vec_size != -1:
@@ -184,17 +186,15 @@ def train_model(model, train_data, valid_data, fields, optim):
 
     trunc_size = opt.truncated_decoder  # Badly named...
     shard_size = opt.max_generator_batches
-
+    
     trainer = onmt.Trainer(model, train_iter, valid_iter,
                            train_loss, valid_loss, optim,
-                           trunc_size, shard_size, opt.topK)
-    if opt.distill: 
-        batch_prob = get_sorted_prob(train_data, pkl.load(open(opt.prob)))
+                           trunc_size, shard_size)
     for epoch in range(opt.start_epoch, opt.epochs + 1):
         print('')
         # 1. Train for one epoch on the training set.
         if opt.distill: 
-            train_stats = trainer.distill(epoch, fields, batch_prob, report_func)
+            train_stats = trainer.distill(opt, epoch, fields, report_func)
         else:
             train_stats = trainer.train(epoch, fields, report_func)
         print('Train perplexity: %g' % train_stats.ppl())
@@ -243,10 +243,12 @@ def tally_parameters(model):
 def load_fields(train, valid, checkpoint):
     fields = onmt.IO.ONMTDataset.load_fields(
                 torch.load(opt.data + '.vocab.pt'))
-    fields = dict([(k, f) for (k, f) in fields.items()
+    train_fields = dict([(k, f) for (k, f) in fields.items()
                   if k in train.examples[0].__dict__])
-    train.fields = fields
-    valid.fields = fields
+    valid_fields = dict([(k, f) for (k, f) in fields.items()
+                  if k in valid.examples[0].__dict__])
+    train.fields = train_fields
+    valid.fields = valid_fields
 
     if opt.train_from:
         print('Loading vocab from checkpoint at %s.' % opt.train_from)

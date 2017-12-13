@@ -21,3 +21,10 @@ models='model/model_1.pt model/model_2.pt model/model_3.pt'
 
 #python translate.py -models $models -src $src_train -output result/ensembleX3.train -dump_prob data/sampling.prob.pkl -gpu 2 > /dev/null 2>&1 &
 #python translate.py -models $models -src $src_train -tgt $tgt_train -dump_prob data/tf.prob.pkl -gpu 3 > /dev/null 2>&1 &
+
+# ensemble model translate
+python translate.py -models model/student_tf.pt -src $src_valid -output result/student_tf.valid -gpu 1 > /dev/null 2>&1 &
+python translate.py -models model/student_tf.pt -src $src_test -output result/student_tf.test -gpu 1 > /dev/null 2>&1 &
+
+python translate.py -models model/student_sampling.pt -src $src_valid -output result/student_sampling.valid -gpu 3 > /dev/null 2>&1 &
+python translate.py -models model/student_sampling.pt -src $src_test -output result/student_sampling.test -gpu 3 > /dev/null 2>&1 &
